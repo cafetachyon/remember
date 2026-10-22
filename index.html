@@ -93,6 +93,29 @@
                     </div>
                 </div>
 
+                <!-- Mode Selection -->
+                <div class="mb-5">
+                    <span class="block text-xs font-bold text-slate-600 mb-2">모드 선택</span>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <label class="text-center py-2.5 px-3 rounded border border-slate-300 bg-white cursor-pointer text-xs font-bold text-slate-700 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50/50">
+                            <input type="radio" name="appMode" value="practice" checked class="hidden">
+                            암기모드
+                        </label>
+                        <label class="text-center py-2.5 px-3 rounded border border-slate-300 bg-white cursor-pointer text-xs font-bold text-slate-700 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/50">
+                            <input type="radio" name="appMode" value="game" class="hidden">
+                            게임모드
+                        </label>
+                        <label class="text-center py-2.5 px-3 rounded border border-slate-300 bg-white cursor-pointer text-xs font-bold text-slate-700 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50/50">
+                            <input type="radio" name="appMode" value="fast_practice" class="hidden">
+                            패스트 암기모드
+                        </label>
+                        <label class="text-center py-2.5 px-3 rounded border border-slate-300 bg-white cursor-pointer text-xs font-bold text-slate-700 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/50">
+                            <input type="radio" name="appMode" value="fast_game" class="hidden">
+                            패스트 게임모드
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Mode Options -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-5">
                     <!-- Progress Type -->
@@ -145,13 +168,10 @@
                 </div>
             </div>
 
-            <!-- Start Buttons -->
-            <div class="flex gap-3 pt-3 border-t border-slate-100">
-                <button onclick="startApp('practice')" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm transition">
-                    암기 모드 시작
-                </button>
-                <button onclick="startApp('game')" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition">
-                    게임 모드 시작
+            <!-- Start Button -->
+            <div class="pt-3 border-t border-slate-100">
+                <button onclick="startApp()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm transition">
+                    시작하기
                 </button>
             </div>
         </section>
@@ -174,7 +194,7 @@
                     </div>
                 </div>
 
-                <!-- Hancom-style Sentence List (5 sentences per page) -->
+                <!-- Sentence List (5 sentences per page) -->
                 <div id="sentencesList" class="space-y-4">
                     <!-- Dynamic Typing Rows -->
                 </div>
@@ -250,7 +270,7 @@
     <!-- JavaScript Logic -->
     <script>
         let state = {
-            mode: 'practice',
+            mode: 'practice', // 'practice', 'game', 'fast_practice', 'fast_game'
             progressType: 'sequential',
             currentStep: 0,
             sentences: [],
@@ -260,7 +280,7 @@
             timerInterval: null,
             remainingTime: 180,
             attempts: {},
-            correctSentencesOnPage: {}, // Tracks which sentences are already correct on the current page
+            correctSentencesOnPage: {},
             step7StartTime: null,
             step7TotalTime: 0
         };
@@ -336,7 +356,7 @@
             }
         }
 
-        function startApp(mode) {
+        function startApp() {
             const rawText = document.getElementById('scriptTextarea').value.trim();
             if (!rawText) {
                 showModal('알림', '대본을 입력해주세요.');
@@ -354,7 +374,7 @@
                 return;
             }
 
-            state.mode = mode;
+            state.mode = document.querySelector('input[name="appMode"]:checked').value;
             state.progressType = document.querySelector('input[name="progressType"]:checked').value;
             
             if (state.progressType === 'select') {
@@ -382,7 +402,12 @@
             const badgeMode = document.getElementById('badgeMode');
             const badgeStep = document.getElementById('badgeStep');
 
-            badgeMode.innerText = state.mode === 'practice' ? '암기 모드' : '게임 모드';
+            let modeName = '암기모드';
+            if (state.mode === 'game') modeName = '게임모드';
+            else if (state.mode === 'fast_practice') modeName = '패스트 암기모드';
+            else if (state.mode === 'fast_game') modeName = '패스트 게임모드';
+
+            badgeMode.innerText = modeName;
             badgeStep.innerText = `${state.currentStep}단계`;
         }
 
@@ -457,7 +482,9 @@
             const timerContainer = document.getElementById('timerContainer');
             clearInterval(state.timerInterval);
 
-            if (state.mode === 'game') {
+            const isGameMode = (state.mode === 'game' || state.mode === 'fast_game');
+
+            if (isGameMode) {
                 timerContainer.classList.remove('hidden');
                 timerContainer.classList.add('flex');
                 state.remainingTime = state.timeLimitPerPage;
@@ -476,6 +503,8 @@
                 timerContainer.classList.remove('flex');
             }
 
+            const isFastMode = (state.mode === 'fast_practice' || state.mode === 'fast_game');
+
             for (let i = startIdx; i < endIdx; i++) {
                 const sent = state.sentences[i];
                 const maskedInfo = getMaskedSentenceInfo(sent, state.currentStep);
@@ -483,7 +512,7 @@
                 const isAlreadyCorrect = state.correctSentencesOnPage[i] || false;
 
                 const rowDiv = document.createElement('div');
-                rowDiv.className = 'py-1.5 space-y-1.5';
+                rowDiv.className = 'py-2 space-y-1.5';
 
                 let hintHtml = '';
                 if (attemptsCount >= 3 && maskedInfo.hiddenWords.length > 0) {
@@ -491,23 +520,59 @@
                     hintHtml = `<span class="ml-2 text-xs font-bold text-amber-600">초성: ${choseongHint}</span>`;
                 }
 
-                rowDiv.innerHTML = `
-                    <div class="text-sm font-medium text-slate-800 leading-normal tracking-wide">
-                        ${maskedInfo.htmlText} ${hintHtml}
-                    </div>
-                    <div>
-                        <input type="text" 
-                               id="input_sent_${i}" 
-                               data-index="${i}"
-                               class="typing-line-input ${isAlreadyCorrect ? 'correct' : ''}" 
-                               placeholder="" 
-                               autocomplete="off"
-                               ${isAlreadyCorrect ? 'disabled' : ''}
-                               onkeydown="handleKeyDown(event, ${i})">
-                    </div>
-                `;
+                if (isFastMode) {
+                    // Fast mode layout
+                    if (state.currentStep === 0) {
+                        rowDiv.innerHTML = `
+                            <div class="text-sm font-medium text-slate-800 leading-normal tracking-wide">
+                                ${maskedInfo.htmlText}
+                            </div>
+                        `;
+                    } else {
+                        rowDiv.innerHTML = `
+                            <div class="text-sm font-medium text-slate-800 leading-normal tracking-wide">
+                                ${maskedInfo.htmlText} ${hintHtml}
+                            </div>
+                            <div>
+                                <input type="text" 
+                                       id="input_sent_${i}" 
+                                       data-index="${i}"
+                                       class="typing-line-input ${isAlreadyCorrect ? 'correct' : ''}" 
+                                       placeholder="없어진 단어들을 차례대로 적어주세요" 
+                                       autocomplete="off"
+                                       ${isAlreadyCorrect ? 'disabled' : ''}
+                                       onkeydown="handleKeyDown(event, ${i})">
+                            </div>
+                        `;
+                    }
+                } else {
+                    // Standard mode layout
+                    rowDiv.innerHTML = `
+                        <div class="text-sm font-medium text-slate-800 leading-normal tracking-wide">
+                            ${maskedInfo.htmlText} ${hintHtml}
+                        </div>
+                        <div>
+                            <input type="text" 
+                                   id="input_sent_${i}" 
+                                   data-index="${i}"
+                                   class="typing-line-input ${isAlreadyCorrect ? 'correct' : ''}" 
+                                   placeholder="" 
+                                   autocomplete="off"
+                                   ${isAlreadyCorrect ? 'disabled' : ''}
+                                   onkeydown="handleKeyDown(event, ${i})">
+                        </div>
+                    `;
+                }
 
                 container.appendChild(rowDiv);
+            }
+
+            // If fast mode and step 0, show a next/complete button layout clearly
+            const submitBtn = document.getElementById('btnSubmitPage');
+            if (isFastMode && state.currentStep === 0) {
+                submitBtn.innerText = (state.currentPage < totalPages - 1) ? '다음 쪽' : '완료하기';
+            } else {
+                submitBtn.innerText = '확인 및 다음';
             }
 
             setTimeout(() => {
@@ -555,29 +620,57 @@
             const endIdx = Math.min(startIdx + state.pageSize, state.sentences.length);
             let pageAllCorrect = true;
 
-            if (!isTimeOut) {
+            const isFastMode = (state.mode === 'fast_practice' || state.mode === 'fast_game');
+
+            if (isFastMode && state.currentStep === 0) {
+                // Step 0 in fast mode has no inputs, just proceed
                 for (let i = startIdx; i < endIdx; i++) {
-                    if (state.correctSentencesOnPage[i]) continue; // Skip already correct sentences
+                    state.correctSentencesOnPage[i] = true;
+                }
+            } else if (!isTimeOut) {
+                for (let i = startIdx; i < endIdx; i++) {
+                    if (state.correctSentencesOnPage[i]) continue;
 
                     const inputEl = document.getElementById(`input_sent_${i}`);
                     if (!inputEl) continue;
 
                     const userVal = inputEl.value;
                     const originalSent = state.sentences[i];
+                    const maskedInfo = getMaskedSentenceInfo(originalSent, state.currentStep);
 
-                    const normUser = normalizeText(userVal);
-                    const normOrig = normalizeText(originalSent);
+                    if (isFastMode) {
+                        // Compare only hidden words combined
+                        const normUser = normalizeText(userVal);
+                        const expectedHiddenStr = maskedInfo.hiddenWords.join('');
+                        const normExpected = normalizeText(expectedHiddenStr);
 
-                    if (normUser === normOrig) {
-                        inputEl.classList.remove('wrong');
-                        inputEl.classList.add('correct');
-                        inputEl.disabled = true;
-                        state.correctSentencesOnPage[i] = true;
+                        if (normUser === normExpected) {
+                            inputEl.classList.remove('wrong');
+                            inputEl.classList.add('correct');
+                            inputEl.disabled = true;
+                            state.correctSentencesOnPage[i] = true;
+                        } else {
+                            pageAllCorrect = false;
+                            inputEl.classList.remove('correct');
+                            inputEl.classList.add('wrong');
+                            state.attempts[i] = (state.attempts[i] || 0) + 1;
+                        }
                     } else {
-                        pageAllCorrect = false;
-                        inputEl.classList.remove('correct');
-                        inputEl.classList.add('wrong');
-                        state.attempts[i] = (state.attempts[i] || 0) + 1;
+                        // Standard mode: compare full sentence
+                        const normUser = normalizeText(userVal);
+                        const normOrig = normalizeText(originalSent);
+
+                        if (normUser === normOrig) {
+                            inputEl.classList.remove('wrong');
+                            inputEl.classList.add('correct');
+                            inputEl.disabled = true;
+                            state.correctSentencesOnPage[i] = true;
+                        } else {
+                            pageAllCorrect = false;
+                            inputEl.classList.remove('correct');
+                            inputEl.classList.add('wrong');
+                            state.attempts[i] = (state.attempts[i] || 0) + 1;
+                        }
                     }
                 }
             }
@@ -592,7 +685,7 @@
 
             if (state.currentPage < totalPages - 1) {
                 state.currentPage++;
-                state.correctSentencesOnPage = {}; // Reset correct trackers for the new page
+                state.correctSentencesOnPage = {};
                 renderPage();
             } else {
                 finishCurrentStep();
@@ -687,4 +780,4 @@
         }
     </script>
 </body>
-</html>
+    </html>
