@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대본 암기 및 타임어택 프로그램</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Noto Sans KR', sans-serif; 
+            background-color: #f8fafc;
+        }
+
+        /* Clean Fixed Square Blank Style - Completely Empty Content */
+        .blank-square {
+            display: inline-block;
+            width: 50px;
+            height: 18px;
+            margin: 0 4px;
+            vertical-align: middle;
+            background-color: #e2e8f0;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            user-select: none;
+        }
+
+        /* Minimalistic Typing Line Input - Hancom Style */
+        .typing-line-input {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1.5px solid #cbd5e1;
+            background-color: #f1f5f9;
+            font-size: 1rem;
+            color: #0f172a;
+            outline: none;
+            transition: all 0.15s ease;
+        }
+        .typing-line-input:focus {
+            border-color: #0284c7;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+        }
+        .typing-line-input.correct {
+            border-color: #10b981;
+            background-color: #ecfdf5;
+            color: #047857;
+        }
+        .typing-line-input.wrong {
+            border-color: #ef4444;
+            background-color: #fef2f2;
+            animation: shake 0.25s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25%, 75% { transform: translateX(-4px); }
+            50% { transform: translateX(4px); }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col">
+
+    <!-- Header Navigation -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="goToScreen('setupScreen')">
+                <span class="font-bold text-lg text-slate-800">대본 암기 타자연습</span>
+            </div>
+            <div id="navStatus" class="hidden flex items-center space-x-2 text-xs font-semibold">
+                <span id="badgeMode" class="px-2.5 py-1 rounded bg-slate-100 text-slate-700 border border-slate-200">암기 모드</span>
+                <span id="badgeStep" class="px-2.5 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200">0단계</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 flex flex-col">
+
+        <!-- SCREEN 1: Setup Screen -->
+        <section id="setupScreen" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col justify-between">
+            <div>
+                <div class="mb-5">
+                    <label for="scriptTextarea" class="block text-sm font-bold text-slate-700 mb-2">
+                        외울 대본 입력
+                    </label>
+                    <textarea id="scriptTextarea" class="w-full h-48 p-3 rounded-lg border border-slate-300 focus:border-blue-500 outline-none text-slate-800 text-sm leading-relaxed transition resize-y" placeholder="대본을 입력하세요. 줄바꿈이나 마침표(.) 단위로 문장이 구분됩니다."></textarea>
+                    <div class="flex justify-between items-center mt-1.5 text-xs text-slate-400">
+                        <span id="sentenceCountInfo">0개 문장</span>
+                        <button onclick="clearSavedScript()" class="hover:underline text-rose-500">대본 초기화</button>
+                    </div>
+                </div>
+
+                <!-- Mode Options -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-5">
+                    <!-- Progress Type -->
+                    <div>
+                        <span class="block text-xs font-bold text-slate-600 mb-2">진행 방식</span>
+                        <div class="flex space-x-2">
+                            <label class="flex-1 text-center py-2 px-3 rounded border border-slate-300 bg-white cursor-pointer text-xs font-bold text-slate-700 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50/50">
+                                <input type="radio" name="progressType" value="sequential" checked class="hidden" onchange="toggleStepSelector()">
+                                순차 진행
+                            </label>
+                            <label class="flex-1 text-center py-2 px-3 rounded border border-slate-300 bg-white cursor-pointer text-xs font-bold text-slate-700 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50/50">
+                                <input type="radio" name="progressType" value="select" class="hidden" onchange="toggleStepSelector()">
+                                단계 직접 선택
+                            </label>
+                        </div>
+                        
+                        <!-- Step Select Dropdown -->
+                        <div id="stepSelectContainer" class="hidden mt-2">
+                            <select id="selectedStep" class="w-full p-2 rounded border border-slate-300 text-xs font-semibold text-slate-700 bg-white outline-none">
+                                <option value="0">0단계</option>
+                                <option value="1">1단계</option>
+                                <option value="2">2단계</option>
+                                <option value="3">3단계</option>
+                                <option value="4">4단계</option>
+                                <option value="5">5단계</option>
+                                <option value="6">6단계</option>
+                                <option value="7">7단계</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Timer Option -->
+                    <div>
+                        <span class="block text-xs font-bold text-slate-600 mb-2">제한시간 (페이지 당)</span>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label class="text-center py-2 rounded border border-slate-300 bg-white cursor-pointer text-xs font-bold text-slate-700 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/50">
+                                <input type="radio" name="timeLimit" value="180" checked class="hidden">
+                                3분
+                            </label>
+                            <label class="text-center py-2 rounded border border-slate-300 bg-white cursor-pointer text-xs font-bold text-slate-700 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/50">
+                                <input type="radio" name="timeLimit" value="120" class="hidden">
+                                2분
+                            </label>
+                            <label class="text-center py-2 rounded border border-slate-300 bg-white cursor-pointer text-xs font-bold text-slate-700 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/50">
+                                <input type="radio" name="timeLimit" value="60" class="hidden">
+                                1분
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Start Buttons -->
+            <div class="flex gap-3 pt-3 border-t border-slate-100">
+                <button onclick="startApp('practice')" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm transition">
+                    암기 모드 시작
+                </button>
+                <button onclick="startApp('game')" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition">
+                    게임 모드 시작
+                </button>
+            </div>
+        </section>
+
+        <!-- SCREEN 2: Practice / Typing Screen -->
+        <section id="practiceScreen" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col justify-between">
+            <div>
+                <!-- Top Status Bar -->
+                <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 text-xs text-slate-600">
+                    <div class="flex items-center space-x-3">
+                        <button onclick="goToScreen('setupScreen')" class="px-2.5 py-1 rounded border border-slate-200 hover:bg-slate-50 font-semibold transition">
+                            처음으로
+                        </button>
+                        <span id="pageIndicator" class="font-bold text-slate-700">1 / 1 쪽</span>
+                    </div>
+
+                    <div id="timerContainer" class="hidden items-center space-x-1 font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+                        <span>시간:</span>
+                        <span id="timerText">03:00</span>
+                    </div>
+                </div>
+
+                <!-- Hancom-style Sentence List (5 sentences per page) -->
+                <div id="sentencesList" class="space-y-4">
+                    <!-- Dynamic Typing Rows -->
+                </div>
+            </div>
+
+            <!-- Bottom Navigation -->
+            <div class="pt-4 border-t border-slate-200 mt-6 flex justify-between items-center">
+                <button id="btnPrevPage" onclick="changePage(-1)" class="px-4 py-2 rounded border border-slate-300 font-bold text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition">
+                    이전 쪽
+                </button>
+
+                <button id="btnSubmitPage" onclick="submitCurrentPage()" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs transition">
+                    확인 및 다음
+                </button>
+            </div>
+        </section>
+
+        <!-- SCREEN 3: Result Screen -->
+        <section id="resultScreen" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex-1 flex flex-col justify-between">
+            <div class="text-center py-6">
+                <h2 id="resultTitle" class="text-2xl font-bold text-slate-800 mb-1">완료</h2>
+                <p id="resultDesc" class="text-xs text-slate-500 mb-6">모든 대본 연습을 마쳤습니다.</p>
+
+                <!-- Record Box -->
+                <div id="recordBox" class="hidden max-w-xs mx-auto bg-blue-50 border border-blue-200 p-3 rounded-lg mb-6">
+                    <span class="text-xs font-bold text-blue-600 block mb-1">7단계 최종 기록</span>
+                    <span id="finalTimeText" class="text-2xl font-bold text-blue-900 font-mono">0초</span>
+                </div>
+
+                <!-- Ranking Table -->
+                <div class="max-w-sm mx-auto text-left">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-bold text-xs text-slate-700">Top 5 랭킹</span>
+                        <button onclick="clearRanking()" class="text-xs text-rose-500 hover:underline">초기화</button>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
+                        <table class="w-full text-xs text-left text-slate-600">
+                            <thead class="bg-slate-100 border-b border-slate-200 text-slate-500">
+                                <tr>
+                                    <th class="px-3 py-2">순위</th>
+                                    <th class="px-3 py-2">소요시간</th>
+                                    <th class="px-3 py-2">날짜</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rankingTableBody">
+                                <!-- Ranking rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-center pt-4 border-t border-slate-100">
+                <button onclick="goToScreen('setupScreen')" class="px-6 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded text-xs transition">
+                    처음으로 돌아가기
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal Box -->
+    <div id="modalBox" class="fixed inset-0 bg-slate-900/30 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg max-w-xs w-full p-5 shadow-lg text-center border border-slate-200">
+            <h3 id="modalTitle" class="text-sm font-bold text-slate-800 mb-1">알림</h3>
+            <p id="modalMessage" class="text-xs text-slate-600 mb-4">내용</p>
+            <button onclick="closeModal()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs transition">
+                확인
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        let state = {
+            mode: 'practice',
+            progressType: 'sequential',
+            currentStep: 0,
+            sentences: [],
+            currentPage: 0,
+            pageSize: 5,
+            timeLimitPerPage: 180,
+            timerInterval: null,
+            remainingTime: 180,
+            attempts: {},
+            correctSentencesOnPage: {}, // Tracks which sentences are already correct on the current page
+            step7StartTime: null,
+            step7TotalTime: 0
+        };
+
+        window.onload = function() {
+            loadSavedScript();
+            updateSentenceCount();
+            document.getElementById('scriptTextarea').addEventListener('input', updateSentenceCount);
+        };
+
+        function showModal(title, msg) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalMessage').innerText = msg;
+            const modal = document.getElementById('modalBox');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modalBox');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function toggleStepSelector() {
+            const type = document.querySelector('input[name="progressType"]:checked').value;
+            const container = document.getElementById('stepSelectContainer');
+            if (type === 'select') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        function loadSavedScript() {
+            const saved = localStorage.getItem('script_memorize_text');
+            if (saved) {
+                document.getElementById('scriptTextarea').value = saved;
+            }
+        }
+
+        function clearSavedScript() {
+            localStorage.removeItem('script_memorize_text');
+            document.getElementById('scriptTextarea').value = '';
+            updateSentenceCount();
+            showModal('초기화', '대본이 초기화되었습니다.');
+        }
+
+        function updateSentenceCount() {
+            const text = document.getElementById('scriptTextarea').value.trim();
+            if (!text) {
+                document.getElementById('sentenceCountInfo').innerText = '0개 문장';
+                return;
+            }
+            const sentences = text.split(/[\n.]+/)
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+            document.getElementById('sentenceCountInfo').innerText = `${sentences.length}개 문장`;
+        }
+
+        function goToScreen(screenId) {
+            clearInterval(state.timerInterval);
+            document.getElementById('setupScreen').classList.add('hidden');
+            document.getElementById('practiceScreen').classList.add('hidden');
+            document.getElementById('resultScreen').classList.add('hidden');
+            document.getElementById(screenId).classList.remove('hidden');
+
+            const navStatus = document.getElementById('navStatus');
+            if (screenId === 'setupScreen') {
+                navStatus.classList.add('hidden');
+            } else {
+                navStatus.classList.remove('hidden');
+            }
+        }
+
+        function startApp(mode) {
+            const rawText = document.getElementById('scriptTextarea').value.trim();
+            if (!rawText) {
+                showModal('알림', '대본을 입력해주세요.');
+                return;
+            }
+
+            localStorage.setItem('script_memorize_text', rawText);
+
+            state.sentences = rawText.split(/[\n.]+/)
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+
+            if (state.sentences.length === 0) {
+                showModal('알림', '유효한 문장이 없습니다.');
+                return;
+            }
+
+            state.mode = mode;
+            state.progressType = document.querySelector('input[name="progressType"]:checked').value;
+            
+            if (state.progressType === 'select') {
+                state.currentStep = parseInt(document.getElementById('selectedStep').value, 10);
+            } else {
+                state.currentStep = 0;
+            }
+
+            state.timeLimitPerPage = parseInt(document.querySelector('input[name="timeLimit"]:checked').value, 10);
+            state.currentPage = 0;
+            state.attempts = {};
+            state.correctSentencesOnPage = {};
+            state.step7TotalTime = 0;
+
+            if (state.currentStep === 7) {
+                state.step7StartTime = Date.now();
+            }
+
+            setupScreenHeader();
+            renderPage();
+            goToScreen('practiceScreen');
+        }
+
+        function setupScreenHeader() {
+            const badgeMode = document.getElementById('badgeMode');
+            const badgeStep = document.getElementById('badgeStep');
+
+            badgeMode.innerText = state.mode === 'practice' ? '암기 모드' : '게임 모드';
+            badgeStep.innerText = `${state.currentStep}단계`;
+        }
+
+        function getChoseong(str) {
+            const choseongList = [
+                'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ',
+                'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'
+            ];
+            let result = '';
+            for (let i = 0; i < str.length; i++) {
+                const code = str.charCodeAt(i) - 44032;
+                if (code >= 0 && code <= 11172) {
+                    result += choseongList[Math.floor(code / 588)];
+                } else {
+                    result += str[i];
+                }
+            }
+            return result;
+        }
+
+        function getMaskedSentenceInfo(sentence, step) {
+            if (step === 0) {
+                return { htmlText: sentence, hiddenWords: [], fullSentence: sentence };
+            }
+
+            const words = sentence.split(/\s+/);
+            const totalWords = words.length;
+            let hiddenIndices = [];
+
+            if (totalWords < 7) {
+                const numToHide = Math.min(step, totalWords);
+                for (let i = totalWords - numToHide; i < totalWords; i++) {
+                    hiddenIndices.push(i);
+                }
+            } else {
+                let numToHide = step;
+                if (step >= 3 && totalWords >= 12) numToHide = step * 2 - 2;
+                else if (step >= 6 && totalWords >= 9) numToHide = step + (step - 5);
+                numToHide = Math.min(numToHide, totalWords);
+
+                for (let i = totalWords - numToHide; i < totalWords; i++) {
+                    hiddenIndices.push(i);
+                }
+            }
+
+            let hiddenWords = [];
+            let formattedWords = words.map((w, idx) => {
+                if (hiddenIndices.includes(idx)) {
+                    hiddenWords.push(w);
+                    return `<span class="blank-square"></span>`;
+                }
+                return w;
+            });
+
+            return {
+                htmlText: formattedWords.join(' '),
+                hiddenWords: hiddenWords,
+                fullSentence: sentence
+            };
+        }
+
+        function renderPage() {
+            const container = document.getElementById('sentencesList');
+            container.innerHTML = '';
+
+            const startIdx = state.currentPage * state.pageSize;
+            const endIdx = Math.min(startIdx + state.pageSize, state.sentences.length);
+            const totalPages = Math.ceil(state.sentences.length / state.pageSize);
+
+            document.getElementById('pageIndicator').innerText = `${state.currentPage + 1} / ${totalPages} 쪽`;
+
+            const timerContainer = document.getElementById('timerContainer');
+            clearInterval(state.timerInterval);
+
+            if (state.mode === 'game') {
+                timerContainer.classList.remove('hidden');
+                timerContainer.classList.add('flex');
+                state.remainingTime = state.timeLimitPerPage;
+                updateTimerDisplay();
+                state.timerInterval = setInterval(() => {
+                    state.remainingTime--;
+                    updateTimerDisplay();
+                    if (state.remainingTime <= 0) {
+                        clearInterval(state.timerInterval);
+                        showModal('시간 초과', '제한시간이 마감되어 다음으로 이동합니다.');
+                        submitCurrentPage(true);
+                    }
+                }, 1000);
+            } else {
+                timerContainer.classList.add('hidden');
+                timerContainer.classList.remove('flex');
+            }
+
+            for (let i = startIdx; i < endIdx; i++) {
+                const sent = state.sentences[i];
+                const maskedInfo = getMaskedSentenceInfo(sent, state.currentStep);
+                const attemptsCount = state.attempts[i] || 0;
+                const isAlreadyCorrect = state.correctSentencesOnPage[i] || false;
+
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'py-1.5 space-y-1.5';
+
+                let hintHtml = '';
+                if (attemptsCount >= 3 && maskedInfo.hiddenWords.length > 0) {
+                    const choseongHint = maskedInfo.hiddenWords.map(w => getChoseong(w)).join(' ');
+                    hintHtml = `<span class="ml-2 text-xs font-bold text-amber-600">초성: ${choseongHint}</span>`;
+                }
+
+                rowDiv.innerHTML = `
+                    <div class="text-sm font-medium text-slate-800 leading-normal tracking-wide">
+                        ${maskedInfo.htmlText} ${hintHtml}
+                    </div>
+                    <div>
+                        <input type="text" 
+                               id="input_sent_${i}" 
+                               data-index="${i}"
+                               class="typing-line-input ${isAlreadyCorrect ? 'correct' : ''}" 
+                               placeholder="" 
+                               autocomplete="off"
+                               ${isAlreadyCorrect ? 'disabled' : ''}
+                               onkeydown="handleKeyDown(event, ${i})">
+                    </div>
+                `;
+
+                container.appendChild(rowDiv);
+            }
+
+            setTimeout(() => {
+                const startIdx = state.currentPage * state.pageSize;
+                const endIdx = Math.min(startIdx + state.pageSize, state.sentences.length);
+                for (let i = startIdx; i < endIdx; i++) {
+                    if (!state.correctSentencesOnPage[i]) {
+                        const firstInput = document.getElementById(`input_sent_${i}`);
+                        if (firstInput) {
+                            firstInput.focus();
+                            break;
+                        }
+                    }
+                }
+            }, 50);
+
+            document.getElementById('btnPrevPage').disabled = (state.currentPage === 0);
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(state.remainingTime / 60);
+            const secs = state.remainingTime % 60;
+            document.getElementById('timerText').innerText = 
+                `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function handleKeyDown(event, index) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const nextInput = document.getElementById(`input_sent_${index + 1}`);
+                if (nextInput && !nextInput.disabled) {
+                    nextInput.focus();
+                } else {
+                    submitCurrentPage();
+                }
+            }
+        }
+
+        function normalizeText(text) {
+            return text.replace(/[.,?!]/g, '').replace(/\s+/g, '').trim().toLowerCase();
+        }
+
+        function submitCurrentPage(isTimeOut = false) {
+            const startIdx = state.currentPage * state.pageSize;
+            const endIdx = Math.min(startIdx + state.pageSize, state.sentences.length);
+            let pageAllCorrect = true;
+
+            if (!isTimeOut) {
+                for (let i = startIdx; i < endIdx; i++) {
+                    if (state.correctSentencesOnPage[i]) continue; // Skip already correct sentences
+
+                    const inputEl = document.getElementById(`input_sent_${i}`);
+                    if (!inputEl) continue;
+
+                    const userVal = inputEl.value;
+                    const originalSent = state.sentences[i];
+
+                    const normUser = normalizeText(userVal);
+                    const normOrig = normalizeText(originalSent);
+
+                    if (normUser === normOrig) {
+                        inputEl.classList.remove('wrong');
+                        inputEl.classList.add('correct');
+                        inputEl.disabled = true;
+                        state.correctSentencesOnPage[i] = true;
+                    } else {
+                        pageAllCorrect = false;
+                        inputEl.classList.remove('correct');
+                        inputEl.classList.add('wrong');
+                        state.attempts[i] = (state.attempts[i] || 0) + 1;
+                    }
+                }
+            }
+
+            if (!pageAllCorrect && !isTimeOut) {
+                showModal('다시 시도', '틀린 문장만 다시 적어주세요! (3번 틀리면 초성 힌트 제공)');
+                renderPage();
+                return;
+            }
+
+            const totalPages = Math.ceil(state.sentences.length / state.pageSize);
+
+            if (state.currentPage < totalPages - 1) {
+                state.currentPage++;
+                state.correctSentencesOnPage = {}; // Reset correct trackers for the new page
+                renderPage();
+            } else {
+                finishCurrentStep();
+            }
+        }
+
+        function changePage(delta) {
+            state.currentPage += delta;
+            state.correctSentencesOnPage = {};
+            renderPage();
+        }
+
+        function finishCurrentStep() {
+            clearInterval(state.timerInterval);
+
+            if (state.currentStep === 7) {
+                state.step7TotalTime = Math.round((Date.now() - state.step7StartTime) / 1000);
+            }
+
+            if (state.progressType === 'sequential' && state.currentStep < 7) {
+                state.currentStep++;
+                state.currentPage = 0;
+                state.attempts = {};
+                state.correctSentencesOnPage = {};
+                
+                if (state.currentStep === 7) {
+                    state.step7StartTime = Date.now();
+                }
+
+                showModal('단계 완료', `${state.currentStep}단계로 넘어갑니다.`);
+                setupScreenHeader();
+                renderPage();
+            } else {
+                showResultsScreen();
+            }
+        }
+
+        function showResultsScreen() {
+            goToScreen('resultScreen');
+
+            const recordBox = document.getElementById('recordBox');
+            if (state.currentStep === 7 || state.step7TotalTime > 0) {
+                recordBox.classList.remove('hidden');
+                document.getElementById('finalTimeText').innerText = `${state.step7TotalTime}초`;
+                saveRankingRecord(state.step7TotalTime);
+            } else {
+                recordBox.classList.add('hidden');
+            }
+
+            renderRankingTable();
+        }
+
+        function saveRankingRecord(timeSeconds) {
+            if (timeSeconds <= 0) return;
+            let records = JSON.parse(localStorage.getItem('script_memorize_rankings') || '[]');
+            const newRecord = {
+                time: timeSeconds,
+                date: new Date().toLocaleDateString('ko-KR')
+            };
+            records.push(newRecord);
+            records.sort((a, b) => a.time - b.time);
+            records = records.slice(0, 5);
+            localStorage.setItem('script_memorize_rankings', JSON.stringify(records));
+        }
+
+        function renderRankingTable() {
+            const tbody = document.getElementById('rankingTableBody');
+            tbody.innerHTML = '';
+            const records = JSON.parse(localStorage.getItem('script_memorize_rankings') || '[]');
+
+            if (records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="px-3 py-3 text-center text-slate-400">등록된 기록이 없습니다.</td></tr>`;
+                return;
+            }
+
+            records.forEach((rec, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-100';
+                tr.innerHTML = `
+                    <td class="px-3 py-2 font-bold text-blue-600">${idx + 1}위</td>
+                    <td class="px-3 py-2 font-bold font-mono text-slate-800">${rec.time}초</td>
+                    <td class="px-3 py-2 text-slate-400">${rec.date}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function clearRanking() {
+            localStorage.removeItem('script_memorize_rankings');
+            renderRankingTable();
+            showModal('초기화', '랭킹 기록이 초기화되었습니다.');
+        }
+    </script>
+</body>
+</html>
